@@ -45,6 +45,7 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Vertex-Level"
 				fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
 
 				// Transform the normal from object space to world space
+				// Use Inverse transpose matrix of transform vertex
 				fixed3 worldNormal = normalize(mul(v.normal, (float3x3)unity_WorldToObject));
 				// Get the light direction in world space
 				// 只适用于单一平行光源，其他类型或者多光源时得不到正确的结果
