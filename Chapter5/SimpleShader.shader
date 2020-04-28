@@ -20,14 +20,14 @@
 			fixed4 _Color;
 
 			// Vertex shader inputs
-            struct a2v
-            {
+            		struct a2v
+            		{
 				// ‘POSITION’ tells Unity, use vertex position of object space to fill 'vertex'
-                float3 vertex : POSITION;
+                		float3 vertex : POSITION;
 				// NORMAL tells Unity, use normal direction of object space to fill 'normal'
 				float3 normal : NORMAL;
 				// first texture coordinate
-                float2 uv0 : TEXCOORD0;
+                		float2 uv0 : TEXCOORD0;
             };
 
             // vertex shader outputs ("vertex to fragment")
