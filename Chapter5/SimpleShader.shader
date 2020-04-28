@@ -28,16 +28,16 @@
 				float3 normal : NORMAL;
 				// first texture coordinate
                 		float2 uv0 : TEXCOORD0;
-            };
+            		};
 
-            // vertex shader outputs ("vertex to fragment")
-            struct v2f
-            {
+            		// vertex shader outputs ("vertex to fragment")
+			struct v2f
+			{
 				// 'SV_POSITION' tells Unity, vertex is positionfof clip space
-                float4 vertex : SV_POSITION;
+                		float4 vertex : SV_POSITION;
 				// Use to save information of color
-                fixed3 color : COLOR0;
-            };
+               			fixed3 color : COLOR0;
+            		};
 
 			v2f vert(a2v v)
 			{
