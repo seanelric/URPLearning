@@ -9,8 +9,7 @@
 	{
 		Pass
 		{
-			CGPROGRAM
-
+			HLSLPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
 
@@ -58,8 +57,7 @@
 
 				return fixed4(c, 1.0);
 			}
-
-			ENDCG
+			ENDHLSL
 		}
 	}
 }
