@@ -1,10 +1,8 @@
 ```c++
-/** 材质面板的显示路径 */
 Shader "URPArchitecture/URP"
 {
     Properties
     {
-        /** 属性类型，显示在材质面板 */
         _Int("Int", Int) = 1
         _Float("Float", Float) = 1.1
         _Range("Range", Range(0.0, 5.0)) = 1.0
@@ -14,39 +12,37 @@ Shader "URPArchitecture/URP"
         _3D("3D", 3D) = "black" {}
         _Cube("Cube", Cube) = "white" {}
         
-        /** 属性标签 */
-        [PerRendererData] 隐藏面板显示，通常由C#端更新的数据
-        [HideInspector] 隐藏面板显示
-        [MainTexture] 主帖图
-        [MainColor] 主颜色
-        [ToggleOff/On] 配合 Shader_Feature 用于变种，面板显示为但选项
+        /** Attributes */
+        [PerRendererData]
+        [HideInspector]
+        [MainTexture]
+        [MainColor]
+        [ToggleOff/On] use with "Shader_Feature"
     }
     
-    /** 可同时存在多个 */
     SubShader
     {
-        /** 标签设置 */
         Tags
         {
             /**
-             * 渲染管线标记，用于标记当前这个 SubShader 属于 URP 管线。
-             * 对应的管线 UniversalRenderPipeline.cs 中的 Shader.globalRenderPipeline。
+             * Universal Pipeline tag is required. If Universal render pipeline is not set in the graphics settings
+             * this Subshader will fail. One can add a subshader below or fallback to Standard built-in to make this
+             * material work with both Universal Render Pipeline and Builtin Unity Pipeline.
+             * Corresponding to "Shader.globalRenderPipeline" in "UniversalRenderPipeline.cs" file.
              */
             "RenderPipeline" = "UniversalPipeline"
             
-            "Queue" = "Transparent"           // 控制渲染顺序
-            "RenderType" = "Opaque"           // 对着色器进行分类
-            "DisableBatching" = "True"        // 是否使用批处理
-            "ForceNoShadowCasting" = "True"   // 是否会投射阴影
-            "IgnoreProjector" = "True"        // 是否受 Projector 影响，通常用于半透明物体
-            "CanUseSpriteAtlas" = "False"     // 使用精灵时设为 False
-            "PreviewType" = "Plane"           // 指明材质面板如何预览该材质
+            "Queue" = "Transparent"
+            "RenderType" = "Opaque"
+            "DisableBatching" = "True"
+            "ForceNoShadowCasting" = "True"
+            "IgnoreProjector" = "True"
+            "CanUseSpriteAtlas" = "False"
+            "PreviewType" = "Plane"
         }
         
-        // 可同时存在多个
         Pass
         {
-            /** 自定义名称 */
             Name "Pass"
             
             /**
@@ -60,13 +56,9 @@ Shader "URPArchitecture/URP"
             }
             
             /* 状态设置 */
-            // 设置剔除模式；剔除正面/背面/关闭
             Cull Back | Front | Off
-            // 设置深度测试时使用的函数
             ZTest Less | LEqual | GEqual | Equal |NotEqual | Always
-            // 开启/关闭深度写入
             Zwrite On | Off
-            // 开启并设置混合模式
             Blend SrcFactor DstFactor
             
             /** 使用 HLSL 着色器语言编写逻辑 */
