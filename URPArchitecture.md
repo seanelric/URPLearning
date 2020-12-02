@@ -45,25 +45,23 @@ Shader "URPArchitecture/URP"
         {
             Name "Pass"
             
-            /**
-             * 和 SubShader 的 Tag 基本一致，
-             * 但是不用定义 "RenderPipeline" 且有特殊标签。
-             */
+            /** Same witch SubShader's Tags，no need "RenderPipeline" but have some special tag. */
             Tags
             {
                 "LightMode"="ForwardBase"           // 定义该 pass 在流水线中的角色
                 "RequireOptions"="SoftVegetation"   // 指定满足某些条件时才渲染该 pass
             }
             
-            /* 状态设置 */
+            /* State Settings */
             Cull Back | Front | Off
             ZTest Less | LEqual | GEqual | Equal |NotEqual | Always
             Zwrite On | Off
             Blend SrcFactor DstFactor
             
-            /** 使用 HLSL 着色器语言编写逻辑 */
+            /** HLSL logic */
             HLSLPROGRAM
-            // 预编译指令
+            
+            // Precompiles
             #pragma vertex vert
             #pragma fragment frag
             #pragma prefer_hlslcc gles
@@ -84,11 +82,11 @@ Shader "URPArchitecture/URP"
              * UnityPerMaterial = 材质球的 Properties（Texture除外）共用这个 Cbuffer。
              * 需要在常量缓冲区进行声明，可以享受到 SRP 的合批功能。
              */
-            CBUFFER_START(UnityPerMaterial) // 常量缓冲区的开始
+            CBUFFER_START(UnityPerMaterial)
             // 常量缓冲区所填充的内容
             half4 _Color;
             ...
-            CBUFFER_END // 常量缓冲区的结束
+            CBUFFER_END
             
             /**
              * 纹理与采样器的分离定义:
