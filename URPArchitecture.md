@@ -13,6 +13,13 @@ Shader "URPArchitecture/URP"
         _2D("2D", 2D) = "" {}
         _3D("3D", 3D) = "black" {}
         _Cube("Cube", Cube) = "white" {}
+        
+        /** 属性标签 */
+        [PerRendererData] 隐藏面板显示，通常由C#端更新的数据
+        [HideInspector] 隐藏面板显示
+        [MainTexture] 主帖图
+        [MainColor] 主颜色
+        [ToggleOff/On] 配合 Shader_Feature 用于变种，面板显示为但选项
     }
     
     /** 可同时存在多个 */
@@ -25,15 +32,15 @@ Shader "URPArchitecture/URP"
              * 渲染管线标记，用于标记当前这个 SubShader 属于 URP 管线。
              * 对应的管线 UniversalRenderPipeline.cs 中的 Shader.globalRenderPipeline。
              */
-            "RenderPipeline"="UniversalPipeline"
+            "RenderPipeline" = "UniversalPipeline"
             
-            "Queue"="Transparent"           // 控制渲染顺序
-            "RenderType"="Opaque"           // 对着色器进行分类
-            "DisableBatching"="True"        // 是否使用批处理
-            "ForceNoShadowCasting"="True"   // 是否会投射阴影
-            "IgnoreProjector"="True"        // 是否受 Projector 影响，通常用于半透明物体
-            "CanUseSpriteAtlas"="False"     // 使用精灵时设为 False
-            "PreviewType"="Plane"           // 指明材质面板如何预览该材质
+            "Queue" = "Transparent"           // 控制渲染顺序
+            "RenderType" = "Opaque"           // 对着色器进行分类
+            "DisableBatching" = "True"        // 是否使用批处理
+            "ForceNoShadowCasting" = "True"   // 是否会投射阴影
+            "IgnoreProjector" = "True"        // 是否受 Projector 影响，通常用于半透明物体
+            "CanUseSpriteAtlas" = "False"     // 使用精灵时设为 False
+            "PreviewType" = "Plane"           // 指明材质面板如何预览该材质
         }
         
         // 可同时存在多个
