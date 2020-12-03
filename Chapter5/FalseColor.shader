@@ -1,71 +1,81 @@
-﻿Shader "Unity Shader Book/Chapter 5/False Color"
+Shader "Unity Shader Book/Chapter 5/False Color"
 {
     SubShader
     {
+        Tags {"RenderPipeline" = "UniversalPipeline"}
+
         Pass
         {
-            CGPROGRAM
-
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "UnityCG.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct v2f
+            struct Attributes
             {
-                float4 pos : SV_POSITION;
-                fixed4 color : COLOR0;
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+                float4 tangent : TANGENT;
+                float4 color : Color;
+                float4 texcoord : TEXCOORD0;
+                float4 texcoord1 : TEXCOORD1;
             };
 
-            v2f vert(appdata_full v)
+            struct Varyings
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+                float4 pos : SV_POSITION;
+                half4 color : COLOR0;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.pos = TransformObjectToHClip(IN.vertex.xyz);
 
                 // Visual normal direction
-                // o.color = fixed4(v.normal * 0.5 + fixed3(0.5, 0.5, 0.5), 1.0);
+                OUT.color = half4(IN.normal * 0.5 + half3(0.5, 0.5, 0.5), 1.0);
 
                 // Visual tangent direction
-                o.color = fixed4(v.tangent * 0.5 + fixed3(0.5, 0.5, 0.5), 1.0);
+                // OUT.color = half4(IN.tangent * 0.5 + half3(0.5, 0.5, 0.5), 1.0);
 
                 // Visual binormal direction
-                // fixed3 binormal = cross(v.normal, v.tangent.xyz) * v.tangent.w;
-                // o.color = fixed4(binormal * 0.5 + fixed3(0.5, 0.5, 0.5), 1.0);
+                // half3 binormal = cross(IN.normal, IN.tangent.xyz) * IN.tangent.w;
+                // OUT.color = half4(binormal * 0.5 + half3(0.5, 0.5, 0.5), 1.0);
 
                 // Visual first texture coordinate
-                // o.color = fixed4(v.texcoord.xy, 0.0, 1.0);
+                // OUT.color = half4(IN.texcoord.xy, 0.0, 1.0);
                 
                 // Visual second texture coordinate
-                // o.color = fixed4(v.texcoord1.xy, 0.0, 1.0);
+                // OUT.color = half4(IN.texcoord1.xy, 0.0, 1.0);
 
                 // Visual fractional part of first texture coordinate
-                // o.color = frac(v.texcoord);
-                // if (any(saturate(v.texcoord) - v.texcoord))
+                // OUT.color = frac(IN.texcoord);
+                // if (any(saturate(IN.texcoord) - IN.texcoord))
                 // {
-                //     o.color.b = 0.5;
+                //     OUT.color.b = 0.5;
                 // }
-                // o.color.a = 1.0;
+                // OUT.color.a = 1.0;
 
                 // Visual fractional part of second texture coordinate
-                // o.color = frac(v.texcoord1);
-                // if (any(saturate(v.texcoord1) - v.texcoord1))
+                // OUT.color = frac(IN.texcoord1);
+                // if (any(saturate(IN.texcoord1) - IN.texcoord1))
                 // {
-                //     o.color.b = 0.5;
+                //     OUT.color.b = 0.5;
                 // }
-                // o.color.a = 1.0;
+                // OUT.color.a = 1.0;
 
                 // Visual vertex color
-                // o.color = v.color;
+                // OUT.color = IN.color;
 
-                return o;
+                return OUT;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            half4 frag(Varyings IN) : SV_Target
             {
-                return i.color;
+                return IN.color;
             }
-
-            ENDCG
+            ENDHLSL
         }
     }
 }
