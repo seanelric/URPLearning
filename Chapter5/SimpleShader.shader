@@ -77,7 +77,6 @@ Shader "Unity Shader Book/Chapter 5/Simple"
 			{
 				return _BaseColor;
 			}
-
 			ENDHLSL
 		}
 	}
