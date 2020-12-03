@@ -77,7 +77,6 @@
 			{
 				return _BaseColor;
 			}
-
 			ENDHLSL
 		}
 	}
