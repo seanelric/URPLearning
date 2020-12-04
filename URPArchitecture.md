@@ -75,6 +75,40 @@ Shader "URPArchitecture/URP"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
             #include "Packages/com.unity.shadergraph/ShaderGraphLibrary/ShaderVariablesFunctions.hlsl"
+                
+            /** 顶点着色器的输入 */
+            struct Attributes
+            {
+                float3 positionOS : POSITION;
+                float2 uv :TEXCOORD0;
+            };
+            
+            /** 顶点着色器的输出 */
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv :TEXCOORD0;
+            };
+            
+            /**
+             * 纹理与采样器的分离定义:
+             * 内置管线是和纹理设置绑定的，修改不灵活。
+             * 分离后可以在 Shader 内部自由组合而不受外部设置的限制。
+             */
+            // 纹理的定义，如果是编译到GLES2.0平台，相当于samler2D _MainTex;否则TEXTURE2D _MainTex
+            TEXTURE2D(_BaseMap);
+            /**
+             * 采样器的定义(纹理与采样器分离定义),采样器是指纹理的过滤模式与重复模式,此功能在OpenGL ES2.0上不支持，相当于没写.
+             * 1.SAMPLER(sampler_textureName):sampler+纹理名称，这种定义形式是表示采用textureName这个纹理Inspector面板中的采样方式.
+             * 2.SAMPLER(_filter_wrap):比如SAMPLER(point_clamp),使用自定义的采样器设置，自定义的采样器一定要同时包含过滤模式<filter>与重复模式<wrap>的设置.
+             * 3.SAMPLER(_filter_wrapU_wrapV):比如SAMPLER(linear_clampU_mirrorV),可同时设置重复模式的U与V的不同值.
+             * 4.filter: point/linear/triLinear
+             * 5.wrap: clamp/repeat/mirror/mirrorOnce
+             */
+            // SAMPLER(sampler_BaseMap); 默认采样器
+            // 为了方便操作 定义预定义
+            #define smp SamplerState_Point_Repeat
+            SAMPLER(smp);
             
             /**
              * 常量缓冲区的定义，GPU 里的一块区域，可以非常快速的和 GPU 传输数据。
@@ -83,72 +117,38 @@ Shader "URPArchitecture/URP"
              * 需要在常量缓冲区进行声明，可以享受到 SRP 的合批功能。
              */
             CBUFFER_START(UnityPerMaterial)
-            // 常量缓冲区所填充的内容
-            half4 _Color;
-            ...
+                // 常量缓冲区所填充的内容
+                // The following line declares the _BaseMap_ST variable, so that you
+                // can use the _BaseMap variable in the fragment shader. The _ST 
+                // suffix is necessary for the tiling and offset function to work.
+                float4 _BaseMap_ST;
+            	float4 _Color;
+            	...
             CBUFFER_END
             
-            /**
-             * 纹理与采样器的分离定义:
-             * 内置管线是和纹理设置绑定的，修改不灵活。
-             * 分离后可以在 Shader 内部自由组合而不受外部设置的限制。
-             */
-            // 纹理的定义，如果是编译到GLES2.0平台，相当于samler2D _MainTex;否则TEXTURE2D _MainTex
-            TEXTURE2D(_MainTex);
-            float4 _MainTex_ST;
-            
-            /**
-             * 采样器的定义(纹理与采样器分离定义),采样器是指纹理的过滤模式与重复模式,此功能在OpenGL ES2.0上不支持，相当于没写.
-             * 1.SAMPLER(sampler_textureName):sampler+纹理名称，这种定义形式是表示采用textureName这个纹理Inspector面板中的采样方式.
-             * 2.SAMPLER(_filter_wrap):比如SAMPLER(point_clamp),使用自定义的采样器设置，自定义的采样器一定要同时包含过滤模式<filter>与重复模式<wrap>的设置.
-             * 3.SAMPLER(_filter_wrapU_wrapV):比如SAMPLER(linear_clampU_mirrorV),可同时设置重复模式的U与V的不同值.
-             * 4.filter:point/linear/triLinear
-             * 5.wrap:clamp/repeat/mirror/mirrorOnce
-             */
-            // 为了方便操作 定义预定义
-            #define smp SamplerState_Point_Repeat
-            // SAMPLER(sampler_MainTex); 默认采样器
-            SAMPLER(smp);
-            
-            /** 顶点着色器的输入 */
-            struct vertex
-            {
-                float3 positionOS : POSITION;
-                float2 uv :TEXCOORD0;
-            };
-            
-            /** 顶点着色器的输出 */
-            struct v2f
-            {
-                float4 positionCS : SV_POSITION;
-                float2 uv :TEXCOORD0;
-            };
-            
             /** 顶点着色器 */
-            v2f vert(vertex v)
+            Varyings vert(Attributes IN)
             {
-                v2f o = (Varyings)0;
-                o.uv = TRANSFORM_TEX(v.uv,_MainTex);
-                o.positionCS = TransformObjectToHClip(v.positionOS);
-                return o;
+                Varyings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS);
+                // The TRANSFORM_TEX macro performs the tiling and offset transformation.
+                OUT.uv = TRANSFORM_TEX(v.uv, _BaseMap);                
+                return OUT;
             }
 
             /** 像素着色器 */
-            half4 frag(v2f i) : SV_TARGET 
+            half4 frag(Varyings IN) : SV_TARGET 
             {    
                 // 进行纹理采样 SAMPLE_TEXTURE2D(纹理名，采样器名，uv)
-                half4 mainTex = SAMPLE_TEXTURE2D(_MainTex,smp,i.uv);
-                half4 c = _Color * mainTex;
-                return c;
+                half4 baseMap = SAMPLE_TEXTURE2D(_BaseMap, smp, IN.uv);
+                half4 color = _Color * baseMap;
+                return color;
             }
             ENDHLSL
         }
         
         /** 复用其他 Unity Shader 的 Pass，Unity 内部会把所有 Pass 的名称转换为大写 */
         UsePass "MyShader/MYPASSNAME"
-        
-        /** 负责抓取屏幕并将结果存储在一张纹理中 */
-        GrabPass {}
     }
     
     /** 当其他 SubShader 都不可用时的默认处理 */
