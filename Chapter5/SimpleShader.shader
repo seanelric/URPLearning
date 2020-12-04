@@ -28,7 +28,7 @@
 			 */
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            /**
+            		/**
 			 * The structure definition defines which variables it contains.
 			 * This example uses the Attributes structure as an input structure in
 			 * the vertex shader.
@@ -77,7 +77,6 @@
 			{
 				return _BaseColor;
 			}
-
 			ENDHLSL
 		}
 	}
