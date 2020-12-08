@@ -64,8 +64,7 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Half Lambert"
                 Light light = GetMainLight();
 
                 // Compute diffuse term.
-                half3 normalWS = normalize(IN.normalWS);
-                half3 halfLambert = saturate(dot(normalWS, light.direction) * _HalfLambert + (1 - _HalfLambert));
+                half3 halfLambert = saturate(dot(IN.normalWS, light.direction) * _HalfLambert + (1 - _HalfLambert));
                 half3 diffuse = light.color * _Diffuse.rgb * halfLambert;
 
                 return half4(ambient + diffuse, 1.0);
