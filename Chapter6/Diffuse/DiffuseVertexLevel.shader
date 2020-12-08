@@ -50,7 +50,7 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Vertex-Level"
 
                 // Transform the normal from object space to world space.
                 // in "com.unity.render-pipelines.core\ShaderLibrary\SpaceTransforms.hlsl"
-                half3 worldNormal = TransformObjectToWorldNormal(IN.normal.xyz);
+                half3 normalWS = TransformObjectToWorldNormal(IN.normal.xyz);
 
                 // Get the main light struct
                 // in "com.unity.render-pipelines.universal\ShaderLibrary\Lighting.hlsl"
