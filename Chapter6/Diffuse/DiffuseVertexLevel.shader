@@ -57,7 +57,7 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Vertex-Level"
                 Light mainLight = GetMainLight();
 
                 // Compute diffuse term.
-                half3 diffuse = mainLight.color * _Diffuse.rgb * saturate(dot(worldNormal, mainLight.direction));
+                half3 diffuse = mainLight.color * _Diffuse.rgb * saturate(dot(normalWS, mainLight.direction));
 
                 OUT.color = half4(ambient + diffuse, 1.0);
 
