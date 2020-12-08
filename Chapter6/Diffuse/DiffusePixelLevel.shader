@@ -61,8 +61,7 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Pixel-Level"
                 // in "com.unity.render-pipelines.universal\ShaderLibrary\Lighting.hlsl"
                 Light mainLight = GetMainLight();
 
-                half3 normalWS = normalize(IN.normalWS);
-                half3 diffuse = mainLight.color * _Diffuse.rgb * saturate(dot(normalWS, mainLight.direction));
+                half3 diffuse = mainLight.color * _Diffuse.rgb * saturate(dot(IN.normalWS, mainLight.direction));
 
                 return half4(ambient + diffuse, 1.0);
             }
