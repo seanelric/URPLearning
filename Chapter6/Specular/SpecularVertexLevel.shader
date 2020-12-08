@@ -1,5 +1,5 @@
 Shader "Unity Shader Book/Chapter 6/Specular Vertex-Level"
-    {
+{
     Properties
     {
         _Diffuse ("Diffuse", Color) = (1, 1, 1, 1)
