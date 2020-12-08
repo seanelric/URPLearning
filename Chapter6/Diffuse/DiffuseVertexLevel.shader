@@ -72,5 +72,5 @@
 		}
 	}
 	
-	Fallback "Diffuse"
+	Fallback "Simple Lit"
 }
