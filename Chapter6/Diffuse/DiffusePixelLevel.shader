@@ -19,7 +19,6 @@ Shader "Unity Shader Book/Chapter 6/Diffuse Pixel-Level"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
 
             struct Attributes
             {
