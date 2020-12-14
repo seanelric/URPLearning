@@ -28,8 +28,8 @@
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float3 normalOS : NORMAL;
-                float4 tangentOS : TANGENT;
+                half3 normalOS : NORMAL;
+                half4 tangentOS : TANGENT;
                 float4 uv : TEXCOORD0;
             };
 
@@ -72,7 +72,7 @@
                 // wToT = the inverse of tToW = the transpose of tToW as long as tToW is an orthogonal matrix.
                 float3x3 worldToTangent = float3x3(tangentWS, binormalWS, normalWS);
 
-                // Transform the light direction from object space to tangent space.
+                // Transform the light direction from world space to tangent space.
                 Light mainLight = GetMainLight();
                 OUT.lightTS = mul(worldToTangent, mainLight.direction);
 
