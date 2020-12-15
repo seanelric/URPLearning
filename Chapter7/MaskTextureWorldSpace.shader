@@ -1,103 +1,114 @@
-﻿Shader "Unity Shaders Book/Chapter 7/Mask Texture"
+Shader "Unity Shader Book/Chapter 7/Mask Texture In World Space"
 {
     Properties
     {
-       _Color ("Color Tint", Color) = (1, 1, 1, 1)
-       _MainTex ("Main Tex", 2D) = "white" {}
-       _BumpTex ("Normal Map", 2D) =  "bump" {}
-       _BumpScale ("Bump Scale", Float) = 1.0
-       _SpecularMask ("Specular Mask", 2D) =  "white" {}
-       _SpecularScale ("Specular Scale", Float) = 1.0
-       _Specular ("Specular", Color) = (1, 1, 1, 1)
-       _Gloss ("Gloss", Range(8, 256)) = 20
+        _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
+        _BaseMap ("Base Map", 2D) = "white" {}
+        _BumpMap ("Normal Map", 2D) = "white" {}
+        _BumpScale ("Bump Scale", Float) = 1.0
+        _SpecularMask ("Specular Mask", 2D) = "white" {}
+        _SpecularScale ("Specular Scale", Float) = 1.0
+        _Specular ("Specular", Color) = (1, 1, 1, 1)
+        _Gloss ("Gloss", Range(8, 256)) = 20
     }
+
     SubShader
     {
+        Tags { "RenderPipeline" = "UniversalPipeline" "RenderType" = "Opaque" }
+
         Pass
         {
-            Tags { "LightMode"="ForwardBase" }
+            Tags { "LightMode" = "UniversalForward" }
 
-            CGPROGRAM
-
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "UnityCG.cginc"
-            #include "Lighting.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            fixed4 _Color;
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-            sampler2D _BumpTex;
-            float _BumpScale;
-            sampler2D _SpecularMask;
-            float _SpecularScale;
-            fixed4 _Specular;
-            float _Gloss;
-
-            struct appdata
+            struct Attributes
             {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float4 tangent : TANGENT;
+                float4 positionOS : POSITION;
+                half3 normalOS : NORMAL;
+                half4 tangentOS : TANGENT;
                 float2 uv : TEXCOORD0;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 pos : SV_POSITION;
-                float2 uv : TEXCOORD0;
+                float4 positionHCS : SV_POSITION;
+                float4 uv : TEXCOORD0;
                 float4 t2w0 : TEXCOORD1;
                 float4 t2w1 : TEXCOORD2;
                 float4 t2w2 : TEXCOORD3;
             };
 
+            TEXTURE2D(_BaseMap);
+            SAMPLER(sampler_BaseMap);
 
-            v2f vert(appdata v)
+            TEXTURE2D(_BumpMap);
+            SAMPLER(sampler_BumpMap);
+
+            TEXTURE2D(_SpecularMask);
+            SAMPLER(sampler_SpecularMask);
+
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor;
+                float4 _BaseMap_ST;
+                float4 _BumpMap_ST;
+                float4 _SpecularMask_ST;
+                float _BumpScale;
+                float _SpecularScale;
+                half4 _Specular;
+                float _Gloss;
+            CBUFFER_END
+
+            Varyings vert(Attributes IN)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv * _MainTex_ST.xy + _MainTex_ST.zw;
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.uv.xy = TRANSFORM_TEX(IN.uv, _BaseMap);
+                OUT.uv.zw = TRANSFORM_TEX(IN.uv, _BumpMap);
 
-                float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                fixed3 worldTangent = UnityObjectToWorldDir(v.tangent.xyz);
-                fixed3 worldNormal = UnityObjectToWorldNormal(v.normal);
-                fixed3 worldBinormal = cross(worldNormal, worldTangent) * v.tangent.w;
+                float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                half3 normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                half3 tangentWS = TransformObjectToWorldDir(IN.tangentOS.xyz);
+                half3 binormalWS = cross(normalWS, tangentWS) * IN.tangentOS.w;
 
-                o.t2w0 = float4(worldTangent.x, worldBinormal.x, worldNormal.x, worldPos.x);
-                o.t2w1 = float4(worldTangent.y, worldBinormal.y, worldNormal.y, worldPos.y);
-                o.t2w2 = float4(worldTangent.z, worldBinormal.z, worldNormal.z, worldPos.z);
+                OUT.t2w0 = float4(tangentWS.x, binormalWS.x, normalWS.x, positionWS.x);
+                OUT.t2w1 = float4(tangentWS.y, binormalWS.y, normalWS.y, positionWS.y);
+                OUT.t2w2 = float4(tangentWS.z, binormalWS.z, normalWS.z, positionWS.z);
 
-                return o;
+                return OUT;
             }
 
-            fixed4 frag(v2f i) : SV_TARGET
+            half4 frag(Varyings IN) : SV_TARGET
             {
-                float3 worldPos = float3(i.t2w0.w, i.t2w1.w, i.t2w2.w);
-                fixed3 lightDir = normalize(UnityWorldSpaceLightDir(worldPos));
-                fixed3 viewDir = normalize(UnityWorldSpaceViewDir(worldPos));
+                float3 positionWS = float3(IN.t2w0.w, IN.t2w1.w, IN.t2w2.w);
+                half3 viewWS = normalize(GetCameraPositionWS() - positionWS.xyz);
+                Light mainLight = GetMainLight();
 
-                fixed3 bump = UnpackNormal(tex2D(_BumpTex, i.uv));
-                bump.xy *= _BumpScale;
-                bump.z = sqrt(1 - saturate(dot(bump.xy, bump.xy)));
-                bump = normalize(half3(dot(i.t2w0.xyz, bump), dot(i.t2w1.xyz, bump), dot(i.t2w2.xyz, bump)));
+                half3 normal = UnpackNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, IN.uv.zw));
+                normal.xy *= _BumpScale;
+                normal.z = sqrt(1 - saturate(dot(normal.xy, normal.xy)));
+                normal = normalize(half3(dot(IN.t2w0.xyz, normal), dot(IN.t2w1.xyz, normal), dot(IN.t2w2.xyz, normal)));
 
-                fixed3 albedo = tex2D(_MainTex, i.uv) * _Color.rgb;
+                half3 albedo = _BaseColor.rgb * SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv.xy).rgb;
 
-                fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
+                half3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
 
-                fixed3 diffuse = _LightColor0.rgb * albedo * saturate(dot(bump, lightDir));
+                half3 diffuse = mainLight.color * albedo * saturate(dot(normal, mainLight.direction));
 
-                fixed3 halfDir = normalize(viewDir + lightDir);
-                fixed specularMask = tex2D(_SpecularMask, i.uv).r * _SpecularScale;
-                fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(saturate(dot(bump, halfDir)), _Gloss) * specularMask;
+                half3 halfDir = normalize(viewWS + mainLight.direction);
+                half specularMask = SAMPLE_TEXTURE2D(_SpecularMask, sampler_SpecularMask, IN.uv.xy).r * _SpecularScale;
+                half3 specular = mainLight.color * _Specular.rgb * pow(saturate(dot(normal, halfDir)), _Gloss) * specularMask;
 
-                return fixed4(ambient + diffuse + specular, 1.0);
+                return half4(ambient + diffuse + specular, 1.0);
             }
-
-            ENDCG
+            ENDHLSL
         }
     }
 
-    Fallback "Specular"
+    Fallback "Simple Lit"
 }
