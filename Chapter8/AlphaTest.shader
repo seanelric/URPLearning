@@ -21,6 +21,8 @@ Shader "Unity Shader Book/Chapter 8/Alpha Test"
         {
             Tags { "LightMode" = "UniversalForward" }
 
+            Cull Off
+
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
