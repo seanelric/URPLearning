@@ -1,93 +1,92 @@
-﻿Shader "Unity Shader Book/Chapter 8/Alpha Blend ZWrite"
+Shader "Unity Shader Book/Chapter 8/Alpha Blend ZWrite"
 {
-	Properties
-	{
-		_Color ("Main Tint", Color) = (1, 1, 1, 1)
-		_MainTex ("Main Tex", 2D) = "black" {}
-		_AlphaScale ("Alpha Scale", Range(0, 1)) = 1
-	}
+    Properties
+    {
+        _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
+        _BaseMap ("Base Map", 2D) = "white" {}
+        _AlphaScale ("Alpha Scale", Range(0, 1)) = 1
+    }
+    SubShader
+    {
+        Tags
+        {
+            "RenderPipeline" = "UniversalPipeline"
+            "RenderType" = "Transparent"
+            "Queue" = "Transparent"
+            "IgnoreProjector" = "True"	
+        }
 
-	SubShader
-	{
-		Tags
-		{
-			"Queue"="Transparent"
-			"IgnoreProjector"="True"
-			"RenderType"="Transparent"
-		}
+        // Extra pass that renders to depth buffer only
+        Pass
+        {
+            ZWrite On
+            ColorMask 0
+        }
 
-		// Extra pass that reders to depth buffer only
-		Pass
-		{
-			ZWrite On
-			ColorMask 0
-		}
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
 
-		// Render
-		Pass
-		{
-			Tags { "LightMode"="ForwardBase" }
+            ZWrite Off
+            Blend SrcAlpha OneMinusSrcAlpha
 
-			ZWrite Off
-			Blend SrcAlpha OneMinusSrcAlpha
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
 
-			CGPROGRAM
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-			#pragma vertex vert
-			#pragma fragment frag
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                half3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
+            };
 
-			#include "Lighting.cginc"
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                half3 normalWS : TEXCOORD1;
+                float2 uv : TEXCOORD2;
+            };
 
-			fixed4 _Color;
-			sampler2D _MainTex;
-			fixed4 _MainTex_ST;
-			fixed _AlphaScale;
+            TEXTURE2D(_BaseMap);
+            SAMPLER(sampler_BaseMap);
 
-			struct a2v
-			{
-				float3 vertex : POSITION;
-				float3 normal : NORMAL;
-				float4 texcoord : TEXCOORD0;
-			};
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor;
+                float4 _BaseMap_ST;
+                half _AlphaScale;
+            CBUFFER_END
 
-			struct v2f
-			{
-				float4 pos : SV_POSITION;
-				float3 worldNormal : TEXCOORD0;
-				float3 worldPos : TEXCOORD1;
-				float2 uv : TEXCOORD2;
-			};
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
+                return OUT;
+            }
 
-			v2f vert(a2v v)
-			{
-				v2f o;
-				o.pos = UnityObjectToClipPos(v.vertex);
-				o.worldNormal = UnityObjectToWorldNormal(v.normal);
-				o.worldPos = UnityObjectToWorldDir(v.vertex);
-				o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+            half4 frag(Varyings IN) : SV_TARGET
+            {
+                half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
 
-				return o;
-			}
+                half3 normalWS = normalize(IN.normalWS);
+                Light mainLight = GetMainLight();
 
-			fixed4 frag(v2f i) : SV_TARGET
-			{
-				fixed3 worldNormal = normalize(i.worldNormal);
-				fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+                half3 albedo = _BaseColor.rgb * texColor.rgb;
 
-				fixed4 texColor = tex2D(_MainTex, i.uv);
+                half3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
 
-				fixed3 albedo = texColor.rgb * _Color.rgb;
+                half3 diffuse = mainLight.color * albedo * saturate(dot(normalWS, mainLight.direction));
 
-				fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
+                return half4(ambient + diffuse, texColor.a * _AlphaScale);
+            }
+            ENDHLSL
+        }
+    }
 
-				fixed3 diffuse = _LightColor0 * albedo * saturate(dot(worldNormal, worldLightDir));
-
-				return fixed4(ambient + diffuse, texColor.a * _AlphaScale);
-			}
-
-			ENDCG
-		}
-	}
-
-	Fallback "Diffuse"
+    Fallback "Simple Lit"
 }
