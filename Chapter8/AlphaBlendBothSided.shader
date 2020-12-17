@@ -1,153 +1,105 @@
-﻿Shader "Unity Shader Book/Chapter 8/Alpha Blend Both Sided"
+Shader "Unity Shader Book/Chapter 8/Alpha Blend Both Sided"
 {
-	Properties
-	{
-		_Color ("Main Tint", Color) = (1, 1, 1, 1)
-		_MainTex ("Main Tex", 2D) = "black" {}
-		_AlphaScale ("Alpha Scale", Range(0, 1)) = 1
-	}
+    Properties
+    {
+        _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
+        _BaseMap ("Base Map", 2D) = "white" {}
+        _AlphaScale ("Alpha Scale", Range(0, 1)) = 1
+    }
 
-	SubShader
-	{
-		Tags
-		{
-			"Queue"="Transparent"
-			"IgnoreProjector"="True"
-			"RenderType"="Transparent"
-		}
+    // Reuse for every Pass 
+    HLSLINCLUDE
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-		// Renders only back faces
-		Pass
-		{
-			Tags { "LightMode"="ForwardBase" }
+    struct Attributes
+    {
+        float4 positionOS : POSITION;
+        half3 normalOS : NORMAL;
+        float2 uv : TEXCOORD0;
+    };
 
-			Cull Front
-			ZWrite Off
-			Blend SrcAlpha OneMinusSrcAlpha
+    struct Varyings
+    {
+        float4 positionHCS : SV_POSITION;
+        half3 normalWS : TEXCOORD1;
+        float2 uv : TEXCOORD2;
+    };
 
-			CGPROGRAM
+    TEXTURE2D(_BaseMap);
+    SAMPLER(sampler_BaseMap);
 
-			#pragma vertex vert
-			#pragma fragment frag
+    CBUFFER_START(UnityPerMaterial)
+        half4 _BaseColor;
+        float4 _BaseMap_ST;
+        half _AlphaScale;
+    CBUFFER_END
 
-			#include "Lighting.cginc"
+    Varyings vert(Attributes IN)
+    {
+        Varyings OUT;
+        OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+        OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+        OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
+        return OUT;
+    }
 
-			fixed4 _Color;
-			sampler2D _MainTex;
-			fixed4 _MainTex_ST;
-			fixed _AlphaScale;
+    half4 frag(Varyings IN) : SV_TARGET
+    {
+        half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
 
-			struct a2v
-			{
-				float3 vertex : POSITION;
-				float3 normal : NORMAL;
-				float4 texcoord : TEXCOORD0;
-			};
+        half3 normalWS = normalize(IN.normalWS);
+        Light mainLight = GetMainLight();
 
-			struct v2f
-			{
-				float4 pos : SV_POSITION;
-				float3 worldNormal : TEXCOORD0;
-				float3 worldPos : TEXCOORD1;
-				float2 uv : TEXCOORD2;
-			};
+        half3 albedo = _BaseColor.rgb * texColor.rgb;
 
-			v2f vert(a2v v)
-			{
-				v2f o;
-				o.pos = UnityObjectToClipPos(v.vertex);
-				o.worldNormal = UnityObjectToWorldNormal(v.normal);
-				o.worldPos = UnityObjectToWorldDir(v.vertex);
-				o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+        half3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
 
-				return o;
-			}
+        half3 diffuse = mainLight.color * albedo * saturate(dot(normalWS, mainLight.direction));
 
-			fixed4 frag(v2f i) : SV_TARGET
-			{
-				fixed3 worldNormal = normalize(i.worldNormal);
-				fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+        return half4(ambient + diffuse, texColor.a * _AlphaScale);
+    }
+    ENDHLSL
 
-				fixed4 texColor = tex2D(_MainTex, i.uv);
+    SubShader
+    {
+        Tags
+        {
+            "RenderPipeline" = "UniversalPipeline"
+            "RenderType" = "Transparent"
+            "Queue" = "Transparent"
+            "IgnoreProjector" = "True"	
+        }
 
-				fixed3 albedo = texColor.rgb * _Color.rgb;
+        ZWrite Off
+        Blend SrcAlpha OneMinusSrcAlpha
 
-				fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
+        // Renders only back faces
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
 
-				fixed3 diffuse = _LightColor0 * albedo * saturate(dot(worldNormal, worldLightDir));
+            Cull Front
 
-				return fixed4(ambient + diffuse, texColor.a * _AlphaScale);
-			}
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            ENDHLSL
+        }
 
-			ENDCG
-		}
+        // Renders only front faces
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
 
-		// Renders only front faces
-		Pass
-		{
-			Tags { "LightMode"="ForwardBase" }
+            Cull Back
 
-			Cull Back
-			ZWrite Off
-			Blend SrcAlpha OneMinusSrcAlpha
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            ENDHLSL
+        }
+    }
 
-			CGPROGRAM
-
-			#pragma vertex vert
-			#pragma fragment frag
-
-			#include "Lighting.cginc"
-
-			fixed4 _Color;
-			sampler2D _MainTex;
-			fixed4 _MainTex_ST;
-			fixed _AlphaScale;
-
-			struct a2v
-			{
-				float3 vertex : POSITION;
-				float3 normal : NORMAL;
-				float4 texcoord : TEXCOORD0;
-			};
-
-			struct v2f
-			{
-				float4 pos : SV_POSITION;
-				float3 worldNormal : TEXCOORD0;
-				float3 worldPos : TEXCOORD1;
-				float2 uv : TEXCOORD2;
-			};
-
-			v2f vert(a2v v)
-			{
-				v2f o;
-				o.pos = UnityObjectToClipPos(v.vertex);
-				o.worldNormal = UnityObjectToWorldNormal(v.normal);
-				o.worldPos = UnityObjectToWorldDir(v.vertex);
-				o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
-
-				return o;
-			}
-
-			fixed4 frag(v2f i) : SV_TARGET
-			{
-				fixed3 worldNormal = normalize(i.worldNormal);
-				fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
-
-				fixed4 texColor = tex2D(_MainTex, i.uv);
-
-				fixed3 albedo = texColor.rgb * _Color.rgb;
-
-				fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
-
-				fixed3 diffuse = _LightColor0 * albedo * saturate(dot(worldNormal, worldLightDir));
-
-				return fixed4(ambient + diffuse, texColor.a * _AlphaScale);
-			}
-
-			ENDCG
-		}
-	}
-
-	Fallback "Transparent/VertexLit"
+    Fallback "Simple Lit"
 }
