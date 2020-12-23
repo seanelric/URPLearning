@@ -1,166 +1,87 @@
-﻿Shader "Unity Shader Book/Chapter 9/Forward Rendering"
+Shader "Unity Shader Book/Chapter 9/Forward Rendering"
 {
     Properties
     {
-        _Diffuse ("Diffuse", Color) = (1, 1, 1, 1)
+        _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
         _Specular ("Specular", Color) = (1, 1, 1, 1)
         _Gloss ("Gloss", Range(9, 256)) = 20
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderPipeline" = "UniversalPipeline" "RenderType" = "Opaque" }
 
         Pass
         {
-            // Pass for ambient light & first pixel light(directional light)
-            Tags { "LightMode"="ForwardBase" }
+            Tags { "LightMode" = "UniversalForward" }
 
-            CGPROGRAM
-
-            // Apparently need to add this declaration
-            #pragma multi_compile_fwdbase
-
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "Lighting.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            fixed4 _Diffuse;
-            fixed4 _Specular;
-            float _Gloss;
-
-            struct appdata
+            struct Attributes
             {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
+                float4 positionOS : POSITION;
+                half3 normalOS : NORMAL;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 pos : SV_POSITION;
-                float3 worldPos : TEXCOORD0;
-                float3 worldNormal : TEXCOORD1;
+                float4 positionHCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
+                half3 normalWS : TEXCOORD1;
             };
 
-            v2f vert (appdata v)
+            CBUFFER_START(UnityPerMaterial)
+                half4 _BaseColor;
+                half4 _Specular;
+                float _Gloss;
+            CBUFFER_END
+
+            Varyings vert (Attributes IN)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.worldNormal = UnityObjectToWorldNormal(v.normal);
-                
-                return o;
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                return OUT;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 frag (Varyings IN) : SV_Target
             {
                 // In World space
-                fixed3 normal = normalize(i.worldNormal);
-                fixed3 lightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
-                fixed3 viewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
+                half3 normalWS = normalize(IN.normalWS);
+                half3 viewDirWS = normalize(GetCameraPositionWS() - IN.positionWS);
 
-                // Get ambient term
-                fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
+                /**
+                 * Compute lighting
+                 * Reference "UniversalFragmentBlinnPhong" function in Lighting.hlsl
+                 */
+                // Main light
+                Light mainLight = GetMainLight();
+                half3 attenuatedLightColor = mainLight.color * mainLight.distanceAttenuation * mainLight.shadowAttenuation;
+                half3 diffuse = LightingLambert(attenuatedLightColor, mainLight.direction, normalWS);
+                half3 specular = LightingSpecular(attenuatedLightColor, mainLight.direction, normalWS, viewDirWS, _Specular, _Gloss);
 
-                // Compute diffuse term
-                fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * max(0, dot(normal, lightDir));
+                // Additional lights
+                uint pixelLightCount = GetAdditionalLightsCount();
+                for (uint i = 0u; i < pixelLightCount; ++i)
+                {
+                    Light light = GetAdditionalLight(i, IN.positionWS);
+                    attenuatedLightColor = light.color * light.distanceAttenuation * light.shadowAttenuation;
+                    diffuse += LightingLambert(attenuatedLightColor, light.direction, normalWS);
+                    specular += LightingSpecular(attenuatedLightColor, light.direction, normalWS, viewDirWS, _Specular, _Gloss);
+                }
 
-                // Compute specular term
-                fixed3 halfDir = normalize(viewDir + lightDir);
-                fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(max(0, dot(normal, halfDir)), _Gloss);
+                diffuse *= _BaseColor.rgb;
 
-                // The attenuation of directional light is always 1
-                fixed atten = 1.0;
-
-                return fixed4(ambient + (diffuse + specular) * atten, 1.0);
+                return half4(diffuse + specular, 1.0);
             }
-            ENDCG
-        }
-
-        Pass
-        {
-            // Pass for other pixel lights
-            Tags { "LightMode"="ForwardAdd" }
-
-            Blend One One
-
-            CGPROGRAM
-
-            // Apparently need to add this declaration
-            #pragma multi_compile_fwdadd
-
-            #pragma vertex vert
-			#pragma fragment frag
-
-            #include "Lighting.cginc"
-			#include "AutoLight.cginc"
-
-            fixed4 _Diffuse;
-			fixed4 _Specular;
-			float _Gloss;
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-            };
-
-            struct v2f
-            {
-                float4 pos : SV_POSITION;
-                float3 worldPos : TEXCOORD0;
-                float3 worldNormal : TEXCOORD1;
-            };
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.worldNormal = UnityObjectToWorldNormal(v.normal);
-                
-                return o;
-            }
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-                fixed3 normal = normalize(i.worldNormal);
-
-                #ifdef USING_DIRECTIONAL_LIGHT
-                    fixed3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                #else
-                    fixed3 lightDir = normalize(_WorldSpaceLightPos0.xyz - i.worldPos.xyz);
-                #endif
-
-                // Compute diffuse term
-                fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * max(0, dot(normal, lightDir));
-
-                // Compute specular term
-                fixed3 viewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
-                fixed3 halfDir = normalize(viewDir + lightDir);
-                fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(max(0, dot(normal, halfDir)), _Gloss);
-
-                #ifdef USING_DIRECTIONAL_LIGHT
-                    // The attenuation of directional light is always 1
-					fixed atten = 1.0;
-				#else
-					#if defined (POINT)
-				        float3 lightCoord = mul(unity_WorldToLight, float4(i.worldPos, 1)).xyz;
-				        fixed atten = tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL;
-				    #elif defined (SPOT)
-				        float4 lightCoord = mul(unity_WorldToLight, float4(i.worldPos, 1));
-				        fixed atten = (lightCoord.z > 0) * tex2D(_LightTexture0, lightCoord.xy / lightCoord.w + 0.5).w * tex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL;
-				    #else
-				        fixed atten = 1.0;
-				    #endif
-				#endif
-
-                return fixed4((diffuse + specular) * atten, 1.0);
-            }
-
-            ENDCG
+            ENDHLSL
         }
     }
 
-    FallBack "Specular"
+    FallBack "Simple Lit"
 }
