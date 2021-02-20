@@ -48,7 +48,7 @@ Shader "URPArchitecture/URP"
             /** Same witch SubShader's Tags，no need "RenderPipeline" but have some special tag. */
             Tags
             {
-                "LightMode"="ForwardBase"           // 定义该 pass 在流水线中的角色
+                "LightMode"="UniversalForward"      // 定义该 pass 在流水线中的角色
                 "RequireOptions"="SoftVegetation"   // 指定满足某些条件时才渲染该 pass
             }
             
